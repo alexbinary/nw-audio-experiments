@@ -7,12 +7,18 @@
       input {
         width: 1000px;
       }
+      output {
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
 
     <canvas id="domCanvas" width=1000 height=200>
     </canvas>
+
+    <p>Current drawing rate: <output id="domCanvasDrawingRate"></output>Hz</p>
+    <p>Drew <output id="domCanvasFrameCount">0</output></p>
 
     <input type="range" min=0 max=1 step=0.00001 value=0 id="domRange">
 

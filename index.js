@@ -12,7 +12,15 @@ onload = function() {
   win.showDevTools();
 
   /*
-   * Initialization
+   * Utilities
+   */
+
+  function currentTime() {
+    return (new Date()).getTime();
+  }
+
+  /*
+   * Canvas initialization
    */
 
   const canvasCtx = domCanvas.getContext('2d');
@@ -23,172 +31,319 @@ onload = function() {
   console.log(`canvas height: ${canvasHeight} px`);
 
   /*
+   * Drawing tools
+   */
+
+  const drawingStats = (function() {
+
+     let frameCount = 0;
+
+     let liveDrawingHasStarted = false;
+     let timeWhenLiveDrawingStarted = undefined;
+
+     let drawingRateTimeStep = 0;
+     let drawingRateFrameCountRef = 0;
+
+     const drawingRateRefreshPeriod = 500;  // ms
+
+     return {
+       didStartLiveDrawing: function() {
+         timeWhenLiveDrawingStarted = currentTime();
+         liveDrawingHasStarted = true;
+       },
+       didDrawFrame: function() {
+         frameCount ++;
+         domCanvasFrameCount.innerHTML = frameCount;
+
+         if (liveDrawingHasStarted) {
+           const t = currentTime() - timeWhenLiveDrawingStarted;
+           const timeStep = Math.floor(t / drawingRateRefreshPeriod);
+           if (timeStep != drawingRateTimeStep) {
+             domCanvasDrawingRate.innerHTML = ((frameCount-drawingRateFrameCountRef)/drawingRateRefreshPeriod*1000);
+             drawingRateTimeStep = timeStep;
+             drawingRateFrameCountRef = frameCount;
+           }
+         }
+       },
+     };
+   })();
+
+  const drawer = (function() {
+
+    let drawings = [];
+
+    return {
+      addDrawing: function(d) {
+        drawings.push(d);
+      },
+      draw: function(t) {
+        canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        for (let i in drawings) {
+          drawings[i](t);
+        }
+        drawingStats.didDrawFrame();
+      },
+    };
+  })();
+
+  const liveDrawer = (function() {
+
+    let t0;
+
+    function draw() {
+      const t = currentTime() - t0;
+      drawer.draw (t);
+      requestAnimationFrame(draw);
+    }
+
+    return {
+      startLiveDrawing: function() {
+        t0 = currentTime();
+        draw();
+        drawingStats.didStartLiveDrawing();
+      },
+    };
+  })();
+
+  /*
+   * Test high frequency drawing
+   */
+
+  (function(){
+    const timeSpan = 0 + 5*1000;  // ms
+
+    drawer.addDrawing(function(t){
+      t = t % timeSpan;
+      const x = canvasWidth * t / timeSpan;
+      canvasCtx.beginPath();
+      canvasCtx.strokeStyle = 'red';
+      canvasCtx.moveTo(x, 0);
+      canvasCtx.lineTo(x, canvasHeight);
+      canvasCtx.stroke();
+    });
+  })();
+
+  liveDrawer.startLiveDrawing();
+
+  /*
+   * Test plotting
+   *
+   * > drawing a curve with more than 100,000 points make the framrate drop
+   *   under 30 Hz
+   */
+
+  (function() {
+
+    const numPoints = canvasWidth * 100;
+    const freq = 10;  // ms
+
+    let points = new Array(numPoints);
+    let c = 0;
+
+    const interval = setInterval(function(){
+      if (c < numPoints) {
+        points[c++] = Math.random();
+      } else {
+        clearInterval(interval);
+      }
+    }, freq);
+
+    const pixelTimeStep = canvasWidth / (points.length-1);
+
+    drawer.addDrawing(function(t){
+
+      canvasCtx.beginPath();
+      canvasCtx.strokeStyle = 'blue';
+
+      for (let i=0,l=points.length; i<l; i++) {
+        const x = i * pixelTimeStep;
+        const y = points[i] * canvasHeight;
+
+        canvasCtx.moveTo(x, canvasHeight);
+        canvasCtx.lineTo(x, canvasHeight - y);
+      }
+
+      canvasCtx.stroke();
+    });
+
+  })();
+
+  /*
    * Input file
    */
 
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.avi';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_1.avi';
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_2.avi';
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/audio.ogg';
   var filepath = '/Users/alexandrebintz/Movies/my_neighbor_totoro_1988_1080p_jpn_eng.mp4';
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.mkv';
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_1.avi';
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video2.mkv';
 
   /*
-   * Inspect input file for its characteristics
+   * Play file to test canvas performance
+   *
+   * > when the canvas above has a low framerate, so does the player's canvas
    */
 
-  require('node-ffprobe')(filepath, function(err, probeData) {
+  // playFile({});
 
-    let inputInfo = {
-      duration : Math.floor(probeData.format.duration * 1000),
-      tracks : [],
-    };
-
-    for (let i in probeData.streams) {
-      if (probeData.streams[i].codec_type === 'audio') {
-
-        inputInfo.tracks.push({
-          sampleRate : probeData.streams[i].sample_rate,
-          channels : probeData.streams[i].channels,
-        });
-      }
-    }
-
-    console.log('inputInfo:');
-    console.log(inputInfo);
-
-    onInputInfoLoaded(inputInfo);
-  });
+  // /*
+  //  * Inspect input file for its characteristics
+  //  */
+  //
+  // require('node-ffprobe')(filepath, function(err, probeData) {
+  //
+  //   let inputInfo = {
+  //     duration : Math.floor(probeData.format.duration * 1000),
+  //     tracks : [],
+  //   };
+  //
+  //   for (let i in probeData.streams) {
+  //     if (probeData.streams[i].codec_type === 'audio') {
+  //
+  //       inputInfo.tracks.push({
+  //         sampleRate : probeData.streams[i].sample_rate,
+  //         channels : probeData.streams[i].channels,
+  //       });
+  //     }
+  //   }
+  //
+  //   console.log('inputInfo:');
+  //   console.log(inputInfo);
+  //
+  //   onInputInfoLoaded(inputInfo);
+  // });
 
   /*
    * Audio graph
    */
 
-  function onInputInfoLoaded(inputInfo) {
-
-    const t1 = 0 + 0 *1000 + 1 *60*1000;
-    // const span = inputInfo.duration;
-    const span = 0 + 10 *1000 + 0 *60*1000;
-    const t2 = t1 + span;
-
-    console.log(`t1: ${t1} ms`);
-    console.log(`t2: ${t2} ms`);
-    console.log(`span: ${span} ms`);
-
-    const sampleRate = inputInfo.tracks[0].sampleRate;
-    const totalSamples = Math.floor((t2-t1)/1000 * sampleRate);
-
-    console.log(`sample rate: ${sampleRate}`);
-    console.log(`total samples: ${totalSamples}`);
-
-    const fc = 10;  // cut signal under 20 Hz
-    const subSampling = Math.floor(sampleRate/fc/2);  // Shannon
-    const totalSamplesFc = Math.floor(totalSamples/subSampling);
-
-    console.log(`fc: ${fc} Hz`);
-    console.log(`subSampling: ${subSampling}`);
-    console.log(`samples: ${totalSamplesFc}`);
-
-    const a = 2*Math.PI*(1/sampleRate)*fc / (2*Math.PI*(1/sampleRate)*fc + 1);
-
-    console.log(`a: ${a}`);
-
-    let samples = new Array(totalSamples);
-    let c = 0;
-
-    const t0 = (new Date()).getTime();
-
-    require('pcm-extract').getStream({
-      filepath: filepath,
-      start: t1,
-      end: t2,
-      channels: 1,
-      processSample : function(sample) {
-        sample = Math.abs(sample);
-        if (this.out === undefined) {
-          this.out = sample;
-        } else {
-          sample = this.out += a * (sample - this.out);
-        }
-        if ((this.count = (++this.count || 0) % subSampling) === 0) {
-          this.push(sample);
-        }
-      },
-    }).on('readable', function(){
-      const sample = this.read();
-      if (sample !== null) {
-        samples[c++] = sample;
-      } else {
-        console.log('end');
-        console.log((new Date()).getTime() - t0 + ' ms');
-        // draw();
-      }
-    });
-
-    const baseline = canvasHeight / 2;
-    const baseScale = baseline * 0.9;
-
-    const curve = {
-      // points: samples,
-      scale: 20,
-      color: 'blue',
-      timestep: 1/(sampleRate/subSampling)*1000,
-    };
-
-    // playFile({
-    //   onAnimationFrame: function update(t) {
-    //
-    //     canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-    //
-    //     canvasCtx.beginPath();
-    //     canvasCtx.strokeStyle = 'black';
-    //     canvasCtx.moveTo(0, baseline);
-    //     canvasCtx.lineTo(canvasWidth, baseline);
-    //     canvasCtx.stroke();
-    //
-    //     const step = canvasWidth * curve.timestep / (t2-t1);
-    //
-    //     canvasCtx.beginPath();
-    //     canvasCtx.strokeStyle = curve.color;
-    //
-    //     for (let j=0, l=samples.length; j<l; j++) {
-    //
-    //       canvasCtx.moveTo(j * step, baseline + samples[j] * baseScale * curve.scale);
-    //       canvasCtx.lineTo(j * step, baseline - samples[j] * baseScale * curve.scale);
-    //     }
-    //     canvasCtx.stroke();
-    //   }
-    // });
-
-    // draw();
-    //
-    // function draw() {
-    //
-    //   console.log('draw');
-    //
-    //   canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-    //
-    //   canvasCtx.beginPath();
-    //   canvasCtx.strokeStyle = 'black';
-    //   canvasCtx.moveTo(0, baseline);
-    //   canvasCtx.lineTo(canvasWidth, baseline);
-    //   canvasCtx.stroke();
-    //
-    //   const step = canvasWidth * curve.timestep / (t2-t1);
-    //
-    //   canvasCtx.beginPath();
-    //   canvasCtx.strokeStyle = curve.color;
-    //
-    //   for (let j=0, l=samples.length; j<l; j++) {
-    //
-    //     canvasCtx.moveTo(j * step, baseline + samples[j] * baseScale * curve.scale);
-    //     canvasCtx.lineTo(j * step, baseline - samples[j] * baseScale * curve.scale);
-    //   }
-    //   canvasCtx.stroke();
-    //
-    //   requestAnimationFrame(draw);
-    // }
-  }
+  // function onInputInfoLoaded(inputInfo) {
+  //
+  //   const t1 = 0 + 0 *1000 + 1 *60*1000;
+  //   // const span = inputInfo.duration;
+  //   const span = 0 + 10 *1000 + 0 *60*1000;
+  //   const t2 = t1 + span;
+  //
+  //   console.log(`t1: ${t1} ms`);
+  //   console.log(`t2: ${t2} ms`);
+  //   console.log(`span: ${span} ms`);
+  //
+  //   const sampleRate = inputInfo.tracks[0].sampleRate;
+  //   const totalSamples = Math.floor((t2-t1)/1000 * sampleRate);
+  //
+  //   console.log(`sample rate: ${sampleRate}`);
+  //   console.log(`total samples: ${totalSamples}`);
+  //
+  //   const fc = 10;  // cut signal under 20 Hz
+  //   const subSampling = Math.floor(sampleRate/fc/2);  // Shannon
+  //   const totalSamplesFc = Math.floor(totalSamples/subSampling);
+  //
+  //   console.log(`fc: ${fc} Hz`);
+  //   console.log(`subSampling: ${subSampling}`);
+  //   console.log(`samples: ${totalSamplesFc}`);
+  //
+  //   const a = 2*Math.PI*(1/sampleRate)*fc / (2*Math.PI*(1/sampleRate)*fc + 1);
+  //
+  //   console.log(`a: ${a}`);
+  //
+  //   let samples = new Array(totalSamples);
+  //   let c = 0;
+  //
+  //   const t0 = (new Date()).getTime();
+  //
+  //   require('pcm-extract').getStream({
+  //     filepath: filepath,
+  //     start: t1,
+  //     end: t2,
+  //     channels: 1,
+  //     processSample : function(sample) {
+  //       sample = Math.abs(sample);
+  //       if (this.out === undefined) {
+  //         this.out = sample;
+  //       } else {
+  //         sample = this.out += a * (sample - this.out);
+  //       }
+  //       if ((this.count = (++this.count || 0) % subSampling) === 0) {
+  //         this.push(sample);
+  //       }
+  //     },
+  //   }).on('readable', function(){
+  //     const sample = this.read();
+  //     if (sample !== null) {
+  //       samples[c++] = sample;
+  //     } else {
+  //       console.log('end');
+  //       console.log((new Date()).getTime() - t0 + ' ms');
+  //       // draw();
+  //     }
+  //   });
+  //
+  //   const baseline = canvasHeight / 2;
+  //   const baseScale = baseline * 0.9;
+  //
+  //   const curve = {
+  //     // points: samples,
+  //     scale: 20,
+  //     color: 'blue',
+  //     timestep: 1/(sampleRate/subSampling)*1000,
+  //   };
+  //
+  //   // playFile({
+  //   //   onAnimationFrame: function update(t) {
+  //   //
+  //   //     canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+  //   //
+  //   //     canvasCtx.beginPath();
+  //   //     canvasCtx.strokeStyle = 'black';
+  //   //     canvasCtx.moveTo(0, baseline);
+  //   //     canvasCtx.lineTo(canvasWidth, baseline);
+  //   //     canvasCtx.stroke();
+  //   //
+  //   //     const step = canvasWidth * curve.timestep / (t2-t1);
+  //   //
+  //   //     canvasCtx.beginPath();
+  //   //     canvasCtx.strokeStyle = curve.color;
+  //   //
+  //   //     for (let j=0, l=samples.length; j<l; j++) {
+  //   //
+  //   //       canvasCtx.moveTo(j * step, baseline + samples[j] * baseScale * curve.scale);
+  //   //       canvasCtx.lineTo(j * step, baseline - samples[j] * baseScale * curve.scale);
+  //   //     }
+  //   //     canvasCtx.stroke();
+  //   //   }
+  //   // });
+  //
+  //   // draw();
+  //   //
+  //   // function draw() {
+  //   //
+  //   //   console.log('draw');
+  //   //
+  //   //   canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+  //   //
+  //   //   canvasCtx.beginPath();
+  //   //   canvasCtx.strokeStyle = 'black';
+  //   //   canvasCtx.moveTo(0, baseline);
+  //   //   canvasCtx.lineTo(canvasWidth, baseline);
+  //   //   canvasCtx.stroke();
+  //   //
+  //   //   const step = canvasWidth * curve.timestep / (t2-t1);
+  //   //
+  //   //   canvasCtx.beginPath();
+  //   //   canvasCtx.strokeStyle = curve.color;
+  //   //
+  //   //   for (let j=0, l=samples.length; j<l; j++) {
+  //   //
+  //   //     canvasCtx.moveTo(j * step, baseline + samples[j] * baseScale * curve.scale);
+  //   //     canvasCtx.lineTo(j * step, baseline - samples[j] * baseScale * curve.scale);
+  //   //   }
+  //   //   canvasCtx.stroke();
+  //   //
+  //   //   requestAnimationFrame(draw);
+  //   // }
+  // }
 
   /**
    * API design
