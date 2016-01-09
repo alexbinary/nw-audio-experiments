@@ -26,12 +26,12 @@ onload = function() {
    * Input file
    */
 
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/audio/video.avi';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/audio/splice_1.avi';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/audio/splice_2.avi';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/audio/audio.ogg';
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.avi';
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_1.avi';
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_2.avi';
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/audio.ogg';
   var filepath = '/Users/alexandrebintz/Movies/my_neighbor_totoro_1988_1080p_jpn_eng.mp4';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/audio/video.mkv';
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.mkv';
 
   /*
    * Inspect input file for its characteristics
