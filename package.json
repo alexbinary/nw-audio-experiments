@@ -1,0 +1,13 @@
+{
+  "name": "nwjs-audio-experiments",
+  "main": "index.html",
+  "window": {
+    "width": 1050,
+    "height": 600
+  },
+  "dependencies": {
+    "node-ffprobe": "1.2.2",
+    "wcjs-prebuilt": "2.0.8",
+    "wcjs-renderer": "0.1.10"
+  }
+}
