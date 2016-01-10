@@ -178,10 +178,11 @@ onload = function() {
    var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_1.avi';
    var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_2.avi';
    var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/audio.ogg';
-  var filepath = '/Users/alexandrebintz/Movies/my_neighbor_totoro_1988_1080p_jpn_eng.mp4';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.mkv';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video2.mkv';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.avi';
+   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.avi';
+   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.mkv';
+   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video2.mkv';
+   var filepath = '/Users/alexandrebintz/Movies/my_neighbor_totoro_1988_1080p_jpn_eng.mp4';
+  var filepath = '/Users/alexandrebintz/Movies/jupiter_ascending_2015_1080p.mp4';
 
   /*
    * Play file to test canvas performance
@@ -227,11 +228,15 @@ onload = function() {
 
     /*
      * Test data quantity management
+     *
+     * > 2hrs subsampled @10 fits in memory
+     * > 10hrs subsampled @100 should fit
      */
 
     (function() {
-      const totalSamples = Math.floor(inputInfo.duration/1000 * inputInfo.tracks[0].sampleRate);
-      console.log(`extracting all samples from file ${filepath} downmixed to 1 channel...`);
+      const subSampling = 10;
+      const totalSamples = Math.floor(inputInfo.duration/1000 * inputInfo.tracks[0].sampleRate / subSampling);
+      console.log(`extracting all samples from file ${filepath} downmixed to 1 channel subsampled at ${subSampling}...`);
       console.log(`approximative number of samples: ${totalSamples}`);
       const t0 = currentTime();
       let samples = [];
@@ -239,6 +244,14 @@ onload = function() {
       require('pcm-extract').getStream({
         filepath: filepath,
         channels: 1,
+        init: function() {
+          this.c = 0;
+        },
+        processSample : function(sample) {
+          if ((this.c++ % subSampling) === 0) {
+            this.push(sample);
+          }
+        }
       }).on('readable', function(){
         const sample = this.read();
         if (sample !== null) {
