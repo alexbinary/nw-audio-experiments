@@ -23,162 +23,165 @@ onload = function() {
    * Canvas initialization
    */
 
-  const canvasCtx = domCanvas.getContext('2d');
-  const canvasWidth = canvasCtx.canvas.width;
-  const canvasHeight = canvasCtx.canvas.height;
-
-  console.log(`canvas width: ${canvasWidth} px`);
-  console.log(`canvas height: ${canvasHeight} px`);
+  // const canvasCtx = domCanvas.getContext('2d');
+  // const canvasWidth = canvasCtx.canvas.width;
+  // const canvasHeight = canvasCtx.canvas.height;
+  //
+  // console.log(`canvas width: ${canvasWidth} px`);
+  // console.log(`canvas height: ${canvasHeight} px`);
 
   /*
    * Drawing tools
    */
 
-  const drawingStats = (function() {
-
-     let frameCount = 0;
-
-     let liveDrawingHasStarted = false;
-     let timeWhenLiveDrawingStarted = undefined;
-
-     let drawingRateTimeStep = 0;
-     let drawingRateFrameCountRef = 0;
-
-     const drawingRateRefreshPeriod = 500;  // ms
-
-     return {
-       didStartLiveDrawing: function() {
-         timeWhenLiveDrawingStarted = currentTime();
-         liveDrawingHasStarted = true;
-       },
-       didDrawFrame: function() {
-         frameCount ++;
-         domCanvasFrameCount.innerHTML = frameCount;
-
-         if (liveDrawingHasStarted) {
-           const t = currentTime() - timeWhenLiveDrawingStarted;
-           const timeStep = Math.floor(t / drawingRateRefreshPeriod);
-           if (timeStep != drawingRateTimeStep) {
-             domCanvasDrawingRate.innerHTML = ((frameCount-drawingRateFrameCountRef)/drawingRateRefreshPeriod*1000);
-             drawingRateTimeStep = timeStep;
-             drawingRateFrameCountRef = frameCount;
-           }
-         }
-       },
-     };
-   })();
-
-  const drawer = (function() {
-
-    let drawings = [];
-
-    return {
-      addDrawing: function(d) {
-        drawings.push(d);
-      },
-      draw: function(t) {
-        canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-        for (let i in drawings) {
-          drawings[i](t);
-        }
-        drawingStats.didDrawFrame();
-      },
-    };
-  })();
-
-  const liveDrawer = (function() {
-
-    let t0;
-
-    function draw() {
-      const t = currentTime() - t0;
-      drawer.draw (t);
-      requestAnimationFrame(draw);
-    }
-
-    return {
-      startLiveDrawing: function() {
-        t0 = currentTime();
-        draw();
-        drawingStats.didStartLiveDrawing();
-      },
-    };
-  })();
+  // const drawingStats = (function() {
+  //
+  //    let frameCount = 0;
+  //
+  //    let liveDrawingHasStarted = false;
+  //    let timeWhenLiveDrawingStarted = undefined;
+  //
+  //    let drawingRateTimeStep = 0;
+  //    let drawingRateFrameCountRef = 0;
+  //
+  //    const drawingRateRefreshPeriod = 500;  // ms
+  //
+  //    return {
+  //      didStartLiveDrawing: function() {
+  //        timeWhenLiveDrawingStarted = currentTime();
+  //        liveDrawingHasStarted = true;
+  //      },
+  //      didDrawFrame: function() {
+  //        frameCount ++;
+  //        domCanvasFrameCount.innerHTML = frameCount;
+  //
+  //        if (liveDrawingHasStarted) {
+  //          const t = currentTime() - timeWhenLiveDrawingStarted;
+  //          const timeStep = Math.floor(t / drawingRateRefreshPeriod);
+  //          if (timeStep != drawingRateTimeStep) {
+  //            domCanvasDrawingRate.innerHTML = ((frameCount-drawingRateFrameCountRef)/drawingRateRefreshPeriod*1000);
+  //            drawingRateTimeStep = timeStep;
+  //            drawingRateFrameCountRef = frameCount;
+  //          }
+  //        }
+  //      },
+  //    };
+  //  })();
+  //
+  // const drawer = (function() {
+  //
+  //   let drawings = [];
+  //
+  //   return {
+  //     addDrawing: function(d) {
+  //       drawings.push(d);
+  //     },
+  //     draw: function(t) {
+  //       canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+  //       for (let i in drawings) {
+  //         drawings[i](t);
+  //       }
+  //       drawingStats.didDrawFrame();
+  //     },
+  //   };
+  // })();
+  //
+  // const liveDrawer = (function() {
+  //
+  //   let t0;
+  //
+  //   function draw() {
+  //     const t = currentTime() - t0;
+  //     drawer.draw (t);
+  //     requestAnimationFrame(draw);
+  //   }
+  //
+  //   return {
+  //     startLiveDrawing: function() {
+  //       t0 = currentTime();
+  //       draw();
+  //       drawingStats.didStartLiveDrawing();
+  //     },
+  //   };
+  // })();
 
   /*
    * Test high frequency drawing
    */
 
-  (function(){
-    const timeSpan = 0 + 5*1000;  // ms
-
-    drawer.addDrawing(function(t){
-      t = t % timeSpan;
-      const x = canvasWidth * t / timeSpan;
-      canvasCtx.beginPath();
-      canvasCtx.strokeStyle = 'red';
-      canvasCtx.moveTo(x, 0);
-      canvasCtx.lineTo(x, canvasHeight);
-      canvasCtx.stroke();
-    });
-  })();
-
-  liveDrawer.startLiveDrawing();
+  // (function(){
+  //   const timeSpan = 0 + 5*1000;  // ms
+  //
+  //   drawer.addDrawing(function(t){
+  //     t = t % timeSpan;
+  //     const x = canvasWidth * t / timeSpan;
+  //     canvasCtx.beginPath();
+  //     canvasCtx.strokeStyle = 'red';
+  //     canvasCtx.moveTo(x, 0);
+  //     canvasCtx.lineTo(x, canvasHeight);
+  //     canvasCtx.stroke();
+  //   });
+  // })();
 
   /*
    * Test plotting
    *
    * > drawing a curve with more than 100,000 points make the framrate drop
    *   under 30 Hz
+   *
+   * > drawing a curve with more than 100,000 points one time takes around 60 ms
+   * > drawing a curve with more than 1,000,000 points one time takes around 300 ms
    */
 
-  (function() {
-
-    const numPoints = canvasWidth * 100;
-    const freq = 10;  // ms
-
-    let points = new Array(numPoints);
-    let c = 0;
-
-    const interval = setInterval(function(){
-      if (c < numPoints) {
-        points[c++] = Math.random();
-      } else {
-        clearInterval(interval);
-      }
-    }, freq);
-
-    const pixelTimeStep = canvasWidth / (points.length-1);
-
-    drawer.addDrawing(function(t){
-
-      canvasCtx.beginPath();
-      canvasCtx.strokeStyle = 'blue';
-
-      for (let i=0,l=points.length; i<l; i++) {
-        const x = i * pixelTimeStep;
-        const y = points[i] * canvasHeight;
-
-        canvasCtx.moveTo(x, canvasHeight);
-        canvasCtx.lineTo(x, canvasHeight - y);
-      }
-
-      canvasCtx.stroke();
-    });
-
-  })();
+  // (function() {
+  //
+  //   const numPoints = canvasWidth * 10;
+  //   const freq = 10;  // ms
+  //
+  //   let points = new Array(numPoints);
+  //   let c = 0;
+  //
+  //   const t1 = currentTime();
+  //   for (let i=0, l=points.length; i<l; i++) {
+  //     points[c++] = Math.random();
+  //   }
+  //   console.log(currentTime()-t1);
+  //
+  //   const pixelTimeStep = canvasWidth / (points.length-1);
+  //
+  //   drawer.addDrawing(function(t){
+  //
+  //     canvasCtx.beginPath();
+  //     canvasCtx.strokeStyle = 'blue';
+  //
+  //     for (let i=0,l=points.length; i<l; i++) {
+  //       const x = i * pixelTimeStep;
+  //       const y = points[i] * canvasHeight;
+  //
+  //       canvasCtx.moveTo(x, canvasHeight);
+  //       canvasCtx.lineTo(x, canvasHeight - y);
+  //     }
+  //
+  //     canvasCtx.stroke();
+  //   });
+  //
+  //   const t2 = currentTime();
+  //   drawer.draw(500);
+  //   console.log(currentTime()-t2);
+  //
+  // })();
 
   /*
    * Input file
    */
 
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.avi';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_2.avi';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/audio.ogg';
+   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_1.avi';
+   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_2.avi';
+   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/audio.ogg';
   var filepath = '/Users/alexandrebintz/Movies/my_neighbor_totoro_1988_1080p_jpn_eng.mp4';
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.mkv';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/splice_1.avi';
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video2.mkv';
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.avi';
 
   /*
    * Play file to test canvas performance
@@ -188,38 +191,71 @@ onload = function() {
 
   // playFile({});
 
-  // /*
-  //  * Inspect input file for its characteristics
-  //  */
-  //
-  // require('node-ffprobe')(filepath, function(err, probeData) {
-  //
-  //   let inputInfo = {
-  //     duration : Math.floor(probeData.format.duration * 1000),
-  //     tracks : [],
-  //   };
-  //
-  //   for (let i in probeData.streams) {
-  //     if (probeData.streams[i].codec_type === 'audio') {
-  //
-  //       inputInfo.tracks.push({
-  //         sampleRate : probeData.streams[i].sample_rate,
-  //         channels : probeData.streams[i].channels,
-  //       });
-  //     }
-  //   }
-  //
-  //   console.log('inputInfo:');
-  //   console.log(inputInfo);
-  //
-  //   onInputInfoLoaded(inputInfo);
-  // });
+  /*
+   * Inspect input file for its characteristics
+   */
+
+  require('node-ffprobe')(filepath, function(err, probeData) {
+
+    let inputInfo = {
+      duration : probeData.format.duration * 1000,
+      tracks : [],
+    };
+
+    for (let i in probeData.streams) {
+      if (probeData.streams[i].codec_type === 'audio') {
+
+        inputInfo.tracks.push({
+          sampleRate : probeData.streams[i].sample_rate,
+          channels : probeData.streams[i].channels,
+        });
+      }
+    }
+
+    console.log(`duration: ${inputInfo.duration} ms`);
+    console.log(`tracks: ${inputInfo.tracks.length}`);
+    for (let i=0, l=inputInfo.tracks.length; i<l; i++) {
+      console.log(`track ${i}:`);
+      console.log(`channels: ${inputInfo.tracks[i].channels}`);
+      console.log(`sample rate: ${inputInfo.tracks[i].sampleRate}`);
+    }
+
+    onInputInfoLoaded(inputInfo);
+  });
+
+  function onInputInfoLoaded(inputInfo) {
+
+    /*
+     * Test data quantity management
+     */
+
+    (function() {
+      const totalSamples = Math.floor(inputInfo.duration/1000 * inputInfo.tracks[0].sampleRate);
+      console.log(`extracting all samples from file ${filepath} downmixed to 1 channel...`);
+      console.log(`approximative number of samples: ${totalSamples}`);
+      const t0 = currentTime();
+      let samples = [];
+      let c = 0;
+      require('pcm-extract').getStream({
+        filepath: filepath,
+        channels: 1,
+      }).on('readable', function(){
+        const sample = this.read();
+        if (sample !== null) {
+          samples[c++] = sample;
+        } else {
+          console.log(`extraction complete in ${currentTime() - t0} ms`);
+          console.log(`extracted ${samples.length} samples`);
+        }
+      });
+    })();
+
+  }
 
   /*
    * Audio graph
    */
 
-  // function onInputInfoLoaded(inputInfo) {
   //
   //   const t1 = 0 + 0 *1000 + 1 *60*1000;
   //   // const span = inputInfo.duration;
