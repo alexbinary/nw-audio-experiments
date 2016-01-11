@@ -40,19 +40,20 @@ onload = function() {
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.avi';
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.mkv';
   var filepath = '/Users/alexandrebintz/Movies/jupiter_ascending_2015_1080p.mp4';
-  var filepath = '/Users/alexandrebintz/Movies/my_neighbor_totoro_1988_1080p_jpn_eng.mp4';
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video2.mkv';
+  var filepath = '/Users/alexandrebintz/Movies/my_neighbor_totoro_1988_1080p_jpn_eng.mp4';
 
   console.log(`working on file ${filepath}`);
 
   // great demo with My Neighbor Totoro
-  // const t1 = 0 + 25 *1000 + 10 *60*1000;
-  // const t2 = 0 + 50 *1000 + 10 *60*1000;
+  const t1 = 0 + 25 *1000 + 10 *60*1000;
+  const t2 = 0 + 50 *1000 + 10 *60*1000;
   // great demo with video2.mkv
   // const t1 = 0 + 25 *1000 + 21 *60*1000;
   // const t2 = 0 + 50 *1000 + 21 *60*1000;
-  const t1 = 0 + 25 *1000 + 21 *60*1000;
-  const t2 = 0 + 50 *1000 + 21 *60*1000;
+
+  // const t1 = 0 + 25 *1000 + 10 *60*1000;
+  // const t2 = 0 + 50 *1000 + 10 *60*1000;
   const span = t2 - t1;
 
   console.log(`working between t1: ${t1} ms and t2: ${t2} ms (span: ${span} ms)`);
@@ -103,6 +104,10 @@ onload = function() {
 
     /*
      * Extract volume data
+     *
+     * Results are good enough with :
+     * > Low-pass filter @1Hz
+     * > subSampling @20Hz
      */
 
     const fc = 1;  // Hz
@@ -110,11 +115,16 @@ onload = function() {
 
     console.log(`low-pass frequency: ${fc} Hz (a = ${a})`);
 
-    const subSamplingMax = Math.floor(sampleRate/fc/2);  // Shannon
-    const subSampling = Math.min(subSamplingMax, totalSamples/(canvasWidth*2));
+    const subSamplingMax = Math.floor(sampleRate/fc/20);
+    // const subSampling = Math.min(subSamplingMax, totalSamples/(canvasWidth*2));
+    const subSampling = subSamplingMax;
 
     console.log(`maximum subsampling: ${subSamplingMax}`);
     console.log(`subsampling: ${subSampling}`);
+
+    const filteredSampleRate = sampleRate / subSampling;
+
+    console.log(`filtered sample rate: ${filteredSampleRate}`);
 
     let samples = [];
     let c = 0;
@@ -151,19 +161,33 @@ onload = function() {
       } else {
         console.log(`extraction complete in ${currentTime()-t0} ms`);
         console.log(`read ${totalSamplesRead} samples`);
-        onSamplesRead(samples);
+        onSamplesRead(samples, filteredSampleRate);
       }
     });
   }
 
-  function onSamplesRead(samples) {
+  function onSamplesRead(samples, filteredSampleRate) {
+
+    /*
+     * Extract local minima using a sliding window
+     */
+
+    console.log('computing minimum volume points...');
+
+    const windowTimeSpan = 1000;  // ms
+
+    console.log(`using window time span: ${windowTimeSpan}`);
+
+    const windowSampleSpan = Math.max(3, windowTimeSpan/1000 * filteredSampleRate);
+
+    console.log(`sample span: ${windowSampleSpan}`);
 
     /*
      * Prepare plotting
      */
 
     const pixelTimeStep = canvasWidth / (samples.length-1);
-    const scale = 50;
+    const scale = 5;
 
     /*
      * Play file between specified time range
@@ -205,7 +229,8 @@ onload = function() {
       function update() {
         requestAnimationFrame(update);
 
-        const t = (currentTime() - t0)*speed + t1 - 100;
+        const offset = 0;
+        const t = (currentTime() - t0)*speed + t1 - offset;
 
         /*
          * Plot all samples on available space
