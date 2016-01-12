@@ -40,17 +40,16 @@ onload = function() {
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.avi';
   var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video.mkv';
   var filepath = '/Users/alexandrebintz/Movies/jupiter_ascending_2015_1080p.mp4';
-  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video2.mkv';
   var filepath = '/Users/alexandrebintz/Movies/my_neighbor_totoro_1988_1080p_jpn_eng.mp4';
+  var t1 = 0 + 25 *1000 + 10 *60*1000;
+  var t2 = 0 + 50 *1000 + 10 *60*1000;
+  var scale = 5;
+  var filepath = '/Users/alexandrebintz/Documents/dev/_nwjs/nw-audio-experiments/video2.mkv';
+  var t1 = 0 + 27 *1000 + 21 *60*1000;
+  var t2 = 0 + 50 *1000 + 21 *60*1000;
+  var scale = 30;
 
   console.log(`working on file ${filepath}`);
-
-  // great demo with My Neighbor Totoro
-  const t1 = 0 + 25 *1000 + 10 *60*1000;
-  const t2 = 0 + 50 *1000 + 10 *60*1000;
-  // great demo with video2.mkv
-  // const t1 = 0 + 25 *1000 + 21 *60*1000;
-  // const t2 = 0 + 50 *1000 + 21 *60*1000;
 
   // const t1 = 0 + 25 *1000 + 10 *60*1000;
   // const t2 = 0 + 50 *1000 + 10 *60*1000;
@@ -115,11 +114,10 @@ onload = function() {
 
     console.log(`low-pass frequency: ${fc} Hz (a = ${a})`);
 
-    const subSamplingMax = Math.floor(sampleRate/fc/20);
-    // const subSampling = Math.min(subSamplingMax, totalSamples/(canvasWidth*2));
-    const subSampling = subSamplingMax;
+    const overSamplingFactor = 20;
+    const subSampling = Math.floor(sampleRate/fc/overSamplingFactor);
 
-    console.log(`maximum subsampling: ${subSamplingMax}`);
+    console.log(`over sampling factor: ${overSamplingFactor}`);
     console.log(`subsampling: ${subSampling}`);
 
     const filteredSampleRate = sampleRate / subSampling;
@@ -170,24 +168,53 @@ onload = function() {
 
     /*
      * Extract local minima using a sliding window
+     *
+     * > time window of 300 ms gives good results...
      */
 
     console.log('computing minimum volume points...');
 
-    const windowTimeSpan = 1000;  // ms
+    const windowTimeSpan = 100;  // ms
 
-    console.log(`using window time span: ${windowTimeSpan}`);
+    console.log(`using window time span: ${windowTimeSpan} ms`);
 
     const windowSampleSpan = Math.max(3, windowTimeSpan/1000 * filteredSampleRate);
 
     console.log(`sample span: ${windowSampleSpan}`);
+
+    let minimaIndexes = [];
+
+    for (let i=windowSampleSpan-1, l=samples.length; i<l; i++) {
+      const headIndex = i;
+      const tailIndex = i - (windowSampleSpan - 1);
+
+      let min = undefined;
+      let minIndex = undefined;
+      for (let j=tailIndex, l=headIndex; j<=l; j++) {
+        if (min === undefined || samples[j] < min) {
+          min = samples[j];
+          minIndex = j;
+        }
+      }
+      if (minIndex !== tailIndex && minIndex !== headIndex) {
+        if (minimaIndexes.indexOf(minIndex) === -1) {
+          minimaIndexes.push(minIndex);
+        }
+      }
+    }
+
+    let minimaTime = minimaIndexes.map(function(index) {
+      return t1 + index / filteredSampleRate * 1000;
+    });
+
+    console.log(`found ${minimaTime.length} points :`);
+    console.log(minimaTime);
 
     /*
      * Prepare plotting
      */
 
     const pixelTimeStep = canvasWidth / (samples.length-1);
-    const scale = 5;
 
     /*
      * Play file between specified time range
@@ -195,19 +222,12 @@ onload = function() {
 
     const speed = 0.7;
 
-    console.log(`playing file at speed ${speed}...`);
+    console.log(`playing file around cut points at speed ${speed}...`);
 
     var vlc = require('wcjs-renderer').init(domCanvasVideo, null, null, require('wcjs-prebuilt'));
     vlc.play(`file://${filepath}`);
 
-    vlc.events.on('TimeChanged', function(time){
-      if (time > t2) {
-        vlc.stop();
-        console.log(`stopped playing at ${time} ms`);
-      }
-    });
-
-    vlc.events.on('Playing', function() {
+    vlc.events.once('Playing', function() {
       console.log(`player ready, jumping and applying speed`);
 
       vlc.time = t1;
@@ -224,13 +244,49 @@ onload = function() {
 
       console.log(`playing`);
 
-      const t0 = currentTime();
+      const cutPauseDuration = 1000;  // ms
+
+      let nextMinima = 0;
+      let worldTimeLastStart = undefined;
+      let mediaTimeLastStop = t1;
+
+      function onCutPointReached() {
+        vlc.pause();
+        mediaTimeLastStop += (currentTime() - worldTimeLastStart)*speed;
+        console.log(`pausing at cut point: ${minimaTime[nextMinima]} ms`);
+        nextMinima++;
+        if (nextMinima === minimaTime.length) {
+          console.log(`reached last cut point, stopping`);
+        } else {
+          setTimeout(function() {
+            onCutEnd();
+          }, cutPauseDuration);
+        }
+      }
+
+      function onCutEnd() {
+        vlc.play();
+        worldTimeLastStart = currentTime();
+        console.log(`resuming until cut point: ${minimaTime[nextMinima]} ms`);
+        setTimeout(function() {
+          onCutPointReached();
+        }, (minimaTime[nextMinima]-(minimaTime[nextMinima-1] || t1))/speed);
+      }
+
+      onCutEnd();
 
       function update() {
         requestAnimationFrame(update);
 
         const offset = 0;
-        const t = (currentTime() - t0)*speed + t1 - offset;
+        const t = (vlc.playing
+          ? (currentTime() - worldTimeLastStart) * speed + mediaTimeLastStop
+          : mediaTimeLastStop)
+           - offset;
+
+        const markers = [
+          t,
+        ].concat(minimaTime);
 
         /*
          * Plot all samples on available space
@@ -247,16 +303,17 @@ onload = function() {
 
           canvasCtx.lineTo(x, canvasHeight - y);
         }
-
         canvasCtx.stroke();
 
-        const x = canvasWidth * (t-t1)/(t2-t1);
-
-        canvasCtx.beginPath();
-        canvasCtx.strokeStyle = 'red';
-        canvasCtx.moveTo(x, 0);
-        canvasCtx.lineTo(x, canvasHeight);
-        canvasCtx.stroke();
+        for (let i=0, l=markers.length; i<l; i++) {
+          const x = canvasWidth * (markers[i]-t1)/(t2-t1);
+          canvasCtx.lineWidth = i===0 ? 2 : 1;
+          canvasCtx.strokeStyle = i===0 ? 'red' : 'grey';
+          canvasCtx.beginPath();
+          canvasCtx.moveTo(x, 0);
+          canvasCtx.lineTo(x, canvasHeight);
+          canvasCtx.stroke();
+        }
       }
       update();
     }
